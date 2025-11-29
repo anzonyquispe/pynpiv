@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+src/__init__.py
+src/glp_model_matrix.py
+src/gsl_bspline.py
+src/mgcv_tensor.py
+src/npiv.py
+src/prodspline.py
+src/test_engel.py
+src/util_npiv.py
+src/pynpiv.egg-info/PKG-INFO
+src/pynpiv.egg-info/SOURCES.txt
+src/pynpiv.egg-info/dependency_links.txt
+src/pynpiv.egg-info/requires.txt
+src/pynpiv.egg-info/top_level.txt
