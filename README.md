@@ -2,7 +2,7 @@
 # npiv
 
 This is the Python package **npiv** (Nonparametric Instrumental Variables
-Estimation and Inference) written by Jeffrey S. Racine
+Estimation and Inference) replicating the R package [npiv](https://github.com/JeffreyRacine/npiv) written by Jeffrey S. Racine
 (<racinej@mcmaster.ca>) and co-authored and maintained by Timothy
 Christensen (<timothy.christensen@yale.edu>).
 
