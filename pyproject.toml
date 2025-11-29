@@ -3,11 +3,11 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "npiv"                    # change if you want a different package name
+name = "pynpiv"                    # change if you want a different package name
 version = "0.1.0"
 description = "Nonparametric IV (NPIV) estimation in Python"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.8"
 
 authors = [
   { name = "Anzony Quispe Rojas", email = "anzony.quispe@gmail.com" }

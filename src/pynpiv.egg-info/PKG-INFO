@@ -1,5 +1,5 @@
 Metadata-Version: 2.4
-Name: npiv
+Name: pynpiv
 Version: 0.1.0
 Summary: Nonparametric IV (NPIV) estimation in Python
 Author-email: Anzony Quispe Rojas <anzony.quispe@gmail.com>
@@ -7,7 +7,7 @@ Project-URL: Homepage, https://github.com/youruser/npivlib
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
-Requires-Python: >=3.9
+Requires-Python: >=3.8
 Description-Content-Type: text/markdown
 Requires-Dist: numpy
 Requires-Dist: scipy
