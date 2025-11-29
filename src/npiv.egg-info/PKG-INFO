@@ -1,3 +1,21 @@
+Metadata-Version: 2.4
+Name: npiv
+Version: 0.1.0
+Summary: Nonparametric IV (NPIV) estimation in Python
+Author-email: Anzony Quispe Rojas <anzony.quispe@gmail.com>
+Project-URL: Homepage, https://github.com/youruser/npivlib
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: numpy
+Requires-Dist: scipy
+Requires-Dist: matplotlib
+Requires-Dist: pandas
+Requires-Dist: tqdm
+Requires-Dist: patsy
+
 
 # npiv
 
@@ -35,15 +53,10 @@ on log household expenditure for plotting purposes. We generate a grid
 of log expenditure from 4.5 to 6.5 for plotting.
 
 ``` python
-# === 1. Load and prepare data ===
-# Load the Engel (1995) dataset and sort by logexp
-engel = pd.read_csv("data/data_engel.csv")
-engel = engel.sort_values("logexp").reset_index(drop=True)
-
-y = engel["food"].to_numpy()          # dependent variable
-x = engel[["logexp"]].to_numpy()      # endogenous regressor
-z = engel[["logwages"]].to_numpy()    # instrument
-x_eval = np.linspace(4.5, 6.5, 150).reshape(-1, 1)
+data("Engel95", package = "npiv")
+Engel95 <- Engel95[order(Engel95$logexp),] 
+attach(Engel95)
+logexp.eval <- seq(4.5,6.5,length=100)
 ```
 
 To nonparametrically regress `Y` on `X` using `W` as an instrument, use
@@ -54,30 +67,30 @@ Christensen, and Kankanala
 `X.eval = logexp.eval` since we want to plot over a smaller region than
 the support of log expenditure.
 
-``` python  
-food_engel = npiv(y, x, z, X_eval = x_eval)
+``` python
+food_engel <- npiv(food, logexp, logwages, X.eval = logexp.eval)
 ```
 
 We plot the estimated function and 95% uniform confidence bands using
 the command `plot`. By default, the confidence bands are generated using
 the method of [Chen, Christensen, and Kankanala
 (2024)](https://doi.org/10.1093/restud/rdae025). We include
-`showdata = True` to overlay the data points.
+`showdata = TRUE` to overlay the data points.
 
 ``` python
-plot_npiv(food_engel)
+plot(food_engel, showdata = TRUE)
 ```
 
-![](figures/npiv_base.png)<!-- -->
+![](man/figures/README-unnamed-chunk-5-1.png)<!-- -->
 
 Confidence bands for the derivative of the structural function are
 plotted by including the argument `type = "deriv"`.
 
 ``` python
-plot_npiv(food_engel, kind = 'deriv')
+plot(food_engel, type = "deriv")
 ```
 
-![](figures/npiv_deriv.png)<!-- -->
+![](man/figures/README-unnamed-chunk-6-1.png)<!-- -->
 
 ### Nonparametric regression
 
@@ -87,11 +100,11 @@ regressor as the instrument. The following example estimates the Engel
 curve for food by regression of `food` on `logexp`:
 
 ``` python
-food_engel = npiv(y, x, z, X_eval = x_eval,  knots = "quantiles")
-plot_npiv(food_engel)
+food_engel_reg_uniform <- npiv(food, logexp, logexp, X.eval = logexp.eval)
+plot(food_engel_reg_uniform, showdata = TRUE)
 ```
 
-![](figures/npiv_nonpa.png)<!-- -->
+![](man/figures/README-unnamed-chunk-7-1.png)<!-- -->
 
 The plot is wiggly, indicating that the algorithm has selected a fairly
 large sieve dimension. This can sometimes happen when the data are far
@@ -101,8 +114,8 @@ by including `knots = "quantiles"` to use splines with knots placed at
 the quantiles of the data.
 
 ``` python
-food_engel = npiv(y, x, z, X_eval = x_eval,  knots = "quantiles")
-plot_npiv(food_engel)
+food_engel_reg_quantiles <- npiv(food, logexp, logexp, X.eval = logexp.eval, knots = "quantiles")
+plot(food_engel_reg_quantiles, showdata = TRUE)
 ```
 
-![](figures/npiv_quant.png)<!-- -->
+![](man/figures/README-unnamed-chunk-8-1.png)<!-- -->
