@@ -22,7 +22,7 @@ apply to nonparametric regression as a special case.
 You can install with `pip`.
 
 ``` python
-library(devtools); install_github('JeffreyRacine/npiv')
+!pip install pynpiv
 ```
 
 ## Examples
