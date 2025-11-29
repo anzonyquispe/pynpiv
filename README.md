@@ -23,6 +23,12 @@ You can install with `pip`.
 
 ``` python
 !pip install pynpiv
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+from scipy.signal import savgol_filter
+from npiv import npiv
+from npiv import plot_npiv
 ```
 
 ## Examples
