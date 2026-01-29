@@ -89,12 +89,13 @@ def nzd(x, tol=1e-12):
 
 def npivJ(Y, X, W,
           X_grid=None,
+          boot_draws_file=None,
           J_x_degree=3,
           K_w_degree=4,
           J_x_segments_set=None,
           K_w_segments_set=None,
-          knots='quantiles',
-          basis='additive',
+          knots='uniform',
+          basis='tensor',
           X_min=None, X_max=None, W_min=None, W_max=None,
           grid_num=50,
           boot_num=99,
@@ -155,6 +156,12 @@ def npivJ(Y, X, W,
 
     np.random.seed(123)  # For reproducibility across bootstrap
 
+    # Cargar bootstrap draws de R si se proporciona archivo
+    if boot_draws_file is not None:
+        boot_draws_R = pd.read_csv(boot_draws_file).values
+    else:
+        boot_draws_R = None
+
     for idx, (J1_seg, J2_seg) in enumerate(pairs):
         if progress:
             pair_pbar.update(1)
@@ -165,17 +172,32 @@ def npivJ(Y, X, W,
         K1_seg = K_w_segments_set[i1]
         K2_seg = K_w_segments_set[i2]
 
-        # Build instrument bases
+        # Build instrument bases using prodspline (matches R exactly)
         if K_w_degree == 0:
             B_w_J1 = B_w_J2 = np.ones((n, 1))
-            B_w_J1_eval = B_w_J2_eval = np.ones((len(X_grid), 1))
         else:
-            B_w_J1, _ = build_basis(W, K_w_degree, K1_seg, basis, W_min, W_max, X_grid, knots)
-            B_w_J2, _ = build_basis(W, K_w_degree, K2_seg, basis, W_min, W_max, X_grid, knots)
+            K_w_mat_J1 = np.column_stack([np.repeat(K_w_degree, p_w), np.repeat(K1_seg, p_w)])
+            K_w_mat_J2 = np.column_stack([np.repeat(K_w_degree, p_w), np.repeat(K2_seg, p_w)])
+            B_w_J1, _ = prodspline(x=W, K=K_w_mat_J1, knots=knots, basis=basis, x_min=W_min, x_max=W_max)
+            B_w_J2, _ = prodspline(x=W, K=K_w_mat_J2, knots=knots, basis=basis, x_min=W_min, x_max=W_max)
+            if basis != 'tensor':
+                B_w_J1 = np.column_stack([np.ones((n, 1)), B_w_J1])
+                B_w_J2 = np.column_stack([np.ones((n, 1)), B_w_J2])
 
-        # Build X bases (on data and grid)
-        Psi_x_J1, Psi_x_J1_eval = build_basis(X, J_x_degree, J1_seg, basis, X_min, X_max, X_grid, knots)
-        Psi_x_J2, Psi_x_J2_eval = build_basis(X, J_x_degree, J2_seg, basis, X_min, X_max, X_grid, knots)
+        # Build X bases (on data and grid) using prodspline
+        K_x_mat_J1 = np.column_stack([np.repeat(J_x_degree, p_x), np.repeat(J1_seg, p_x)])
+        K_x_mat_J2 = np.column_stack([np.repeat(J_x_degree, p_x), np.repeat(J2_seg, p_x)])
+        
+        Psi_x_J1, _ = prodspline(x=X, K=K_x_mat_J1, knots=knots, basis=basis, x_min=X_min, x_max=X_max)
+        Psi_x_J2, _ = prodspline(x=X, K=K_x_mat_J2, knots=knots, basis=basis, x_min=X_min, x_max=X_max)
+        Psi_x_J1_eval, _ = prodspline(x=X, xeval=X_grid, K=K_x_mat_J1, knots=knots, basis=basis, x_min=X_min, x_max=X_max)
+        Psi_x_J2_eval, _ = prodspline(x=X, xeval=X_grid, K=K_x_mat_J2, knots=knots, basis=basis, x_min=X_min, x_max=X_max)
+        
+        if basis != 'tensor':
+            Psi_x_J1 = np.column_stack([np.ones((n, 1)), Psi_x_J1])
+            Psi_x_J2 = np.column_stack([np.ones((n, 1)), Psi_x_J2])
+            Psi_x_J1_eval = np.column_stack([np.ones((len(X_grid), 1)), Psi_x_J1_eval])
+            Psi_x_J2_eval = np.column_stack([np.ones((len(X_grid), 1)), Psi_x_J2_eval])
 
         # Precompute inverses
         P_w_J1 = pinv(B_w_J1.T @ B_w_J1)
@@ -235,7 +257,10 @@ def npivJ(Y, X, W,
         for b in range(boot_num):
             if progress and idx == 0:
                 boot_pbar.update(1)
-            eps = np.random.normal(size=n)
+            if boot_draws_R is not None:
+                eps = boot_draws_R[b, :]
+            else:
+                eps = np.random.normal(size=n)
             num1 = Psi_x_J1_eval @ (tmp1 @ (U1 * eps))
             num2 = Psi_x_J2_eval @ (tmp2 @ (U2 * eps))
             Z_sup_boot[b, idx] = np.max(np.abs(num1 - num2) / nzd(asy_se))
@@ -490,8 +515,9 @@ def npiv_Jhat_max(X, W, J_x_degree=3, K_w_degree=4, K_w_smooth=2, knots='quantil
 
 def npiv_choose_J(Y, X, W,
                   X_grid=None,
+                  boot_draws_file=None,
                   J_x_degree=3, K_w_degree=4, K_w_smooth=2,
-                  knots='quantiles', basis='additive',
+                  knots='uniform', basis='tensor',
                   X_min=None, X_max=None, W_min=None, W_max=None,
                   grid_num=50, boot_num=99,
                   npiv_Jhat_max = npiv_Jhat_max,
@@ -516,6 +542,7 @@ def npiv_choose_J(Y, X, W,
     # Step 2: Lepski adaptation using the grid from Step 1
     tmp2 = npivJ(Y, X, W,
                  X_grid=X_grid,
+                 boot_draws_file=boot_draws_file,
                  J_x_degree=J_x_degree,
                  K_w_degree=K_w_degree,
                  J_x_segments_set=tmp1['J.x.segments.set'],
@@ -748,7 +775,8 @@ def npivEst(
             np.repeat(K_w_degree, W.shape[1]),
             np.repeat(K_w_segments, W.shape[1]),
         ])
-        B_w = prodspline(
+        # FIX: desempaquetar tupla
+        B_w, _ = prodspline(
             x=W,
             K=K_w_mat,
             knots=knots,
@@ -771,8 +799,8 @@ def npivEst(
             np.repeat(J_x_segments, X.shape[1]),
         ])
 
-        # training grid
-        Psi_x = prodspline(
+        # FIX: desempaquetar tupla
+        Psi_x, _ = prodspline(
             x=X,
             K=K_x_mat,
             knots=knots,
@@ -782,13 +810,14 @@ def npivEst(
         )
         Psi_x_eval = Psi_x.copy()
 
-        Psi_x_deriv = prodspline(
+        # FIX: desempaquetar tupla
+        Psi_x_deriv, _ = prodspline(
             x=X,
             K=K_x_mat,
             knots=knots,
             basis=basis,
             deriv_index=deriv_index,
-            deriv=deriv_order,
+            deriv_order=deriv_order,
             x_min=X_min,
             x_max=X_max,
         )
@@ -800,7 +829,8 @@ def npivEst(
             if X_eval.ndim == 1:
                 X_eval = X_eval.reshape(-1, 1)
 
-            Psi_x_eval = prodspline(
+            # FIX: desempaquetar tupla
+            Psi_x_eval, _ = prodspline(
                 x=X,
                 xeval=X_eval,
                 K=K_x_mat,
@@ -809,14 +839,15 @@ def npivEst(
                 x_min=X_min,
                 x_max=X_max,
             )
-            Psi_x_deriv_eval = prodspline(
+            # FIX: desempaquetar tupla
+            Psi_x_deriv_eval, _ = prodspline(
                 x=X,
                 xeval=X_eval,
                 K=K_x_mat,
                 knots=knots,
                 basis=basis,
                 deriv_index=deriv_index,
-                deriv=deriv_order,
+                deriv_order=deriv_order,
                 x_min=X_min,
                 x_max=X_max,
             )
@@ -929,7 +960,8 @@ def npivEst(
                         np.repeat(K_w_degree, W.shape[1]),
                         np.repeat(K_seg_i, W.shape[1]),
                     ])
-                    B_w_J = prodspline(
+                    # FIX: desempaquetar tupla
+                    B_w_J, _ = prodspline(
                         x=W,
                         K=K_w_mat_i,
                         knots=knots,
@@ -950,7 +982,8 @@ def npivEst(
                         np.repeat(J_x_degree, X.shape[1]),
                         np.repeat(J_seg_i, X.shape[1]),
                     ])
-                    Psi_x_J = prodspline(
+                    # FIX: desempaquetar tupla
+                    Psi_x_J, _ = prodspline(
                         x=X,
                         K=K_x_mat_i,
                         knots=knots,
@@ -961,20 +994,22 @@ def npivEst(
                     Psi_x_J_eval = Psi_x_J.copy()
 
                     if ucb_deriv:
-                        Psi_x_J_deriv = prodspline(
+                        # FIX: desempaquetar tupla
+                        Psi_x_J_deriv, _ = prodspline(
                             x=X,
                             K=K_x_mat_i,
                             knots=knots,
                             basis=basis,
                             deriv_index=deriv_index,
-                            deriv=deriv_order,
+                            deriv_order=deriv_order,
                             x_min=X_min,
                             x_max=X_max,
                         )
                         Psi_x_J_deriv_eval = Psi_x_J_deriv.copy()
 
                     if X_eval is not None:
-                        Psi_x_J_eval = prodspline(
+                        # FIX: desempaquetar tupla
+                        Psi_x_J_eval, _ = prodspline(
                             x=X,
                             xeval=X_eval,
                             K=K_x_mat_i,
@@ -984,14 +1019,15 @@ def npivEst(
                             x_max=X_max,
                         )
                         if ucb_deriv:
-                            Psi_x_J_deriv_eval = prodspline(
+                            # FIX: desempaquetar tupla
+                            Psi_x_J_deriv_eval, _ = prodspline(
                                 x=X,
                                 xeval=X_eval,
                                 K=K_x_mat_i,
                                 knots=knots,
                                 basis=basis,
                                 deriv_index=deriv_index,
-                                deriv=deriv_order,
+                                deriv_order=deriv_order,
                                 x_min=X_min,
                                 x_max=X_max,
                             )
