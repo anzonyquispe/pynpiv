@@ -12,12 +12,12 @@ def prodspline(
     I=None,
     xeval=None,
     zeval=None,
-    knots="quantiles",
+    knots="uniform",  
     basis="additive",
     x_min=None,
     x_max=None,
     deriv_index=1,
-    deriv=0
+    deriv_order=0
 ):
     """
     Python version of the R function `prodspline`.
@@ -45,7 +45,7 @@ def prodspline(
         Domain boundaries for each variable.
     deriv_index : int
         Variable index for derivative (1-based).
-    deriv : int
+    deriv_order : int
         Order of derivative (0 = none).
 
     Returns
@@ -66,8 +66,8 @@ def prodspline(
     n, num_x = x.shape
     num_K = K.shape[0]
 
-    if deriv < 0:
-        raise ValueError("deriv must be non-negative.")
+    if deriv_order < 0:
+        raise ValueError("deriv_order must be non-negative.")
     if deriv_index < 1 or deriv_index > num_x:
         raise ValueError("deriv_index is invalid.")
     if num_K != num_x:
@@ -111,7 +111,7 @@ def prodspline(
                 degree=degree,
                 nbreak=nbreak,
                 knots=knot_vec,
-                deriv=deriv if (i + 1 == deriv_index and deriv != 0) else 0,
+                deriv=deriv_order if (i + 1 == deriv_index and deriv_order != 0) else 0,
                 x_min=xmin_i,
                 x_max=xmax_i,
                 intercept=(basis not in ["additive", "glp"])
@@ -144,4 +144,4 @@ def prodspline(
             P = glp_model_matrix(tp_list)
 
     P = np.asarray(P, dtype=float)
-    return P
+    return P, dim_P_no_tensor
